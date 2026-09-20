@@ -1,0 +1,37 @@
+name: p5
+on:
+  push:
+    branches:
+      - main
+ 
+jobs: 
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci 
+        # working-directory: ./tight-voice-080e
+
+      - name: Run Unit Tests
+        run: npm test -- --run
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        
+        with:
+          apiToken: ${{ secrets.API_KEY }}
+          accountId: ${{ secrets.ACCOUNT_ID }}
+      
+

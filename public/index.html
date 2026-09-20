@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Recibo de despliegue · worker con github</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Mono:wght@400;500&display=swap"
+			rel="stylesheet"
+		/>
+		<style>
+			:root {
+				--desk: #c8d0f6;
+				--paper: #f7f8fc;
+				--ink: #151a30;
+				--muted: #5c647f;
+				--rule: #b9c0d8;
+				--stamp: #a5ddaf;
+				--fail: #c2362f;
+				--display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+				--mono: "DM Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+			}
+
+			* { box-sizing: border-box; }
+
+			body {
+				margin: 0;
+				min-height: 100vh;
+				background: var(--desk);
+				color: var(--ink);
+				font-family: var(--mono);
+				font-size: 15px;
+				line-height: 1.55;
+				display: flex;
+				justify-content: center;
+				align-items: flex-start;
+				padding: 48px 20px 72px;
+			}
+
+			.receipt {
+				position: relative;
+				width: 100%;
+				max-width: 460px;
+				background: var(--paper);
+				padding: 40px 32px 44px;
+				box-shadow: 0 30px 60px -20px rgba(8, 14, 60, 0.55);
+			}
+
+			/* Borde inferior tipo ticket rasgado */
+			.receipt::after {
+				content: "";
+				position: absolute;
+				left: 0;
+				right: 0;
+				bottom: -12px;
+				height: 12px;
+				background:
+					linear-gradient(135deg, var(--paper) 25%, transparent 25%) -6px 0 / 12px 12px,
+					linear-gradient(225deg, var(--paper) 25%, transparent 25%) -6px 0 / 12px 12px;
+			}
+
+			h1 {
+				margin: 0;
+				font-family: var(--display);
+				font-weight: 800;
+				font-size: 1.75rem;
+				line-height: 1.1;
+				letter-spacing: -0.02em;
+			}
+
+			.worker {
+				margin: 14px 0 0;
+				color: var(--muted);
+			}
+
+			.says {
+				margin: 22px 0 0;
+				padding: 12px 14px;
+				background: #e9ecf7;
+				border-left: 4px solid var(--desk);
+			}
+			.says strong { font-weight: 500; }
+
+			h2 {
+				margin: 34px 0 6px;
+				font-family: var(--display);
+				font-weight: 600;
+				font-size: 1.15rem;
+				letter-spacing: -0.01em;
+			}
+
+			ol, ul { list-style: none; margin: 0; padding: 0; }
+
+			/* Líneas con puntos guía, como en un recibo */
+			.line {
+				display: flex;
+				align-items: baseline;
+				gap: 8px;
+				padding: 5px 0;
+			}
+			.line .fill {
+				flex: 1;
+				border-bottom: 2px dotted var(--rule);
+				transform: translateY(-4px);
+			}
+			.line .step { color: var(--muted); flex: none; width: 1.4em; }
+			.line .tag { font-weight: 500; flex: none; }
+			.line { white-space: nowrap; }
+
+			.route { padding: 14px 0; border-top: 1px dashed var(--rule); }
+			.route:first-child { border-top: 0; }
+			.route-head {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				gap: 12px;
+			}
+			.route code { font-family: var(--mono); font-weight: 500; }
+
+			button {
+				font: inherit;
+				font-weight: 500;
+				color: var(--paper);
+				background: var(--ink);
+				border: 0;
+				padding: 7px 16px;
+				cursor: pointer;
+			}
+			button:hover { background: var(--desk); }
+			button:disabled { opacity: 0.55; cursor: progress; }
+			button:focus-visible,
+			:focus-visible { outline: 3px solid var(--stamp); outline-offset: 2px; }
+
+			.result {
+				margin: 8px 0 0;
+				color: var(--muted);
+				min-height: 1.55em;
+				overflow-wrap: anywhere;
+			}
+			.result .body { display: block; color: var(--ink); white-space: pre-wrap; }
+			.result.error { color: var(--fail); }
+
+			.total {
+				margin-top: 30px;
+				padding-top: 14px;
+				border-top: 2px solid var(--ink);
+				display: flex;
+				justify-content: space-between;
+				align-items: baseline;
+				gap: 12px;
+			}
+			.total .state {
+				white-space: nowrap;
+				font-family: var(--display);
+				font-weight: 800;
+				font-size: 1.3rem;
+				letter-spacing: -0.01em;
+			}
+			.total .state.fail { color: var(--fail); }
+			.stamp-time { margin: 6px 0 0; color: var(--muted); font-size: 0.85rem; }
+
+			/* El sello: único momento de movimiento, responde al resultado real de /health */
+			.stamp {
+				display: table;
+				margin: 0 0 18px auto;
+				padding: 6px 14px;
+				border: 4px solid var(--stamp);
+				border-radius: 6px;
+				color: var(--stamp);
+				font-family: var(--display);
+				font-weight: 800;
+				font-size: 1.1rem;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+				transform: rotate(-6deg);
+				opacity: 0;
+				mix-blend-mode: multiply;
+			}
+			.stamp.fail { color: var(--fail); border-color: var(--fail); }
+			.stamp.in { animation: press 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2) forwards; }
+
+			@keyframes press {
+				0% { opacity: 0; transform: rotate(-2deg) scale(1.9); }
+				60% { opacity: 1; transform: rotate(-6deg) scale(0.94); }
+				100% { opacity: 0.92; transform: rotate(-6deg) scale(1); }
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				.stamp.in { animation: none; opacity: 0.92; }
+			}
+
+			@media (max-width: 380px) {
+				body { font-size: 14px; padding: 28px 12px 56px; }
+				.receipt { padding: 28px 20px 40px; }
+				.line { gap: 6px; }
+			}
+		</style>
+	</head>
+	<body>
+		<main class="receipt">
+			<div id="stamp" class="stamp" role="status">Verificando</div>
+			<h1>Recibo de despliegue</h1>
+			<p class="worker">worker with GitHub<br />Práctica 5 de DevOps</p>
+
+			<p class="says">El Worker responde: <strong id="message">esperando…</strong></p>
+
+			<h2>Lo que hizo el pipeline</h2>
+			<ol>
+				<li class="line"><span class="step">1</span>Descargar el código<span class="fill"></span><span class="tag">listo</span></li>
+				<li class="line"><span class="step">2</span>Instalar paquetes<span class="fill"></span><span class="tag">listo</span></li>
+				<li class="line"><span class="step">3</span>Correr las pruebas<span class="fill"></span><span class="tag">listo</span></li>
+				<li class="line"><span class="step">4</span>Desplegar el Worker<span class="fill"></span><span class="tag">listo</span></li>
+			</ol>
+
+			<h2>Pruébalo tú mismo</h2>
+			<ul>
+				<li class="route">
+					<div class="route-head">
+						<code>GET /message</code>
+						<button type="button" data-path="/message">Probar</button>
+					</div>
+					<p class="result" aria-live="polite">Sin probar</p>
+				</li>
+				<li class="route">
+					<div class="route-head">
+						<code>GET /random</code>
+						<button type="button" data-path="/random">Probar</button>
+					</div>
+					<p class="result" aria-live="polite">Sin probar</p>
+				</li>
+				<li class="route">
+					<div class="route-head">
+						<code>GET /health</code>
+						<button type="button" data-path="/health">Probar</button>
+					</div>
+					<p class="result" aria-live="polite">Sin probar</p>
+				</li>
+			</ul>
+
+			<div class="total">
+				<span>Estado del servicio</span>
+				<span id="state" class="state">Verificando…</span>
+			</div>
+			<p id="checked" class="stamp-time">Última verificación: pendiente</p>
+		</main>
+
+		<script>
+			const $ = (sel, root = document) => root.querySelector(sel);
+
+			async function probe(path) {
+				const start = performance.now();
+				const resp = await fetch(path, { cache: "no-store" });
+				const body = await resp.text();
+				return { status: resp.status, ms: Math.round(performance.now() - start), body };
+			}
+
+			function pretty(text) {
+				try {
+					const data = JSON.parse(text);
+					if (data && typeof data === "object") {
+						return Object.entries(data).map(([k, v]) => `${k}: ${v}`).join("\n");
+					}
+				} catch {}
+				return text;
+			}
+
+			function show(button, outcome, error) {
+				const result = $(".result", button.closest(".route"));
+				const failed = error || !outcome || outcome.status < 200 || outcome.status > 299;
+				result.classList.toggle("error", failed);
+				result.replaceChildren();
+				if (failed) {
+					result.textContent = outcome
+						? `Error ${outcome.status}. Abre esta página desde el Worker (wrangler dev o tu URL de workers.dev).`
+						: "No respondió. Revisa que el Worker esté desplegado.";
+					return;
+				}
+				result.append(`${outcome.status} en ${outcome.ms} ms`);
+				const body = document.createElement("span");
+				body.className = "body";
+				body.textContent = pretty(outcome.body);
+				result.append(body);
+			}
+
+			async function run(button) {
+				button.disabled = true;
+				try {
+					const outcome = await probe(button.dataset.path);
+					show(button, outcome, false);
+					return outcome.status >= 200 && outcome.status <= 299 ? outcome : null;
+				} catch (err) {
+					show(button, null, true);
+					return null;
+				} finally {
+					button.disabled = false;
+				}
+			}
+
+			function setHealth(ok, timestamp) {
+				const state = $("#state");
+				const stamp = $("#stamp");
+				state.textContent = ok ? "En línea" : "Sin respuesta";
+				state.classList.toggle("fail", !ok);
+				stamp.textContent = ok ? "Desplegado" : "Sin respuesta";
+				document.querySelectorAll(".line .tag").forEach((t) => { t.textContent = ok ? "listo" : "sin verificar"; });
+				stamp.classList.remove("in");
+				void stamp.offsetWidth;
+				stamp.classList.toggle("fail", !ok);
+				stamp.classList.add("in");
+				const when = timestamp ? new Date(timestamp) : new Date();
+				$("#checked").textContent = "Última verificación: " + when.toLocaleString("es-MX");
+			}
+
+			document.querySelectorAll("button[data-path]").forEach((button) => {
+				button.addEventListener("click", async () => {
+					const outcome = await run(button);
+					if (button.dataset.path === "/health") {
+						if (!outcome) return setHealth(false);
+						try { setHealth(true, JSON.parse(outcome.body).timestamp); }
+						catch { setHealth(false); }
+					}
+				});
+			});
+
+			// Al abrir la página se prueban /message y /health automáticamente
+			(async () => {
+				const messageButton = $('button[data-path="/message"]');
+				const healthButton = $('button[data-path="/health"]');
+
+				const message = await run(messageButton);
+				$("#message").textContent = message ? message.body : "sin conexión con el Worker";
+
+				const health = await run(healthButton);
+				if (!health) return setHealth(false);
+				try { setHealth(true, JSON.parse(health.body).timestamp); }
+				catch { setHealth(false); }
+			})();
+		</script>
+	</body>
+</html>
