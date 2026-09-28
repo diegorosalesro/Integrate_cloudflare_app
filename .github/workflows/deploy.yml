@@ -26,14 +26,6 @@ jobs:
       - name: Run Unit Tests
         run: npm test -- --run
 
-      # ⬇️ NUEVO PASO: Aplicar migraciones/esquema D1 en producción ⬇️
-      - name: Execute D1 Migrations
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.API_TOKEN }}
-          accountId: ${{ secrets.ACCOUNT_ID }}
-          command: d1 execute practica_4_db --remote --file=./schema.sql
-
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
