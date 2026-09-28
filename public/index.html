@@ -266,6 +266,10 @@
 			function pretty(text) {
 				try {
 					const data = JSON.parse(text);
+					// Si la respuesta es un arreglo (ej. los usuarios de D1), mostrarlo formateado
+					if (Array.isArray(data)) {
+						return JSON.stringify(data, null, 2);
+					}
 					if (data && typeof data === "object") {
 						return Object.entries(data).map(([k, v]) => `${k}: ${v}`).join("\n");
 					}
@@ -335,6 +339,23 @@
 			(async () => {
 				const messageButton = $('button[data-path="/message"]');
 				const healthButton = $('button[data-path="/health"]');
+
+				const message = await run(messageButton);
+				$("#message").textContent = message ? message.body : "sin conexión con el Worker";
+
+				const health = await run(healthButton);
+				if (!health) return setHealth(false);
+				try { setHealth(true, JSON.parse(health.body).timestamp); }
+				catch { setHealth(false); }
+			})();
+
+			// Al abrir la página se prueban las rutas automáticamente
+			(async () => {
+				const messageButton = $('button[data-path="/message"]');
+				const healthButton = $('button[data-path="/health"]');
+				const usuariosButton = $('button[data-path="/usuarios"]');
+
+				if (usuariosButton) run(usuariosButton);
 
 				const message = await run(messageButton);
 				$("#message").textContent = message ? message.body : "sin conexión con el Worker";
