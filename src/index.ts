@@ -1,32 +1,30 @@
 /**
  * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Bind resources to your worker in `wrangler.jsonc`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
  */
 
 export default {
-	async fetch(request, env, ctx): Promise<Response> {
-		const url = new URL(request.url);
-		switch (url.pathname) {
-			case '/message':
-				return new Response('Hello, World!');
-			case '/random':
-				return new Response(crypto.randomUUID());
-			case '/health':
-				return Response.json({
-					status: 'ok',
-					timestamp: new Date().toISOString(),
-				});
-			default:
-				return new Response('Not Found', { status: 404 });
-		}
-	},
+    async fetch(request, env, ctx): Promise<Response> {
+        const url = new URL(request.url);
+        switch (url.pathname) {
+            case '/message':
+                return new Response('Hello, World!');
+            case '/random':
+                return new Response(crypto.randomUUID());
+            case '/health':
+                return Response.json({
+                    status: 'ok',
+                    timestamp: new Date().toISOString(),
+                });
+            // ⬇️ NUEVO CASE AGREGADO PARA TU BASE DE DATOS D1 ⬇️
+            case '/usuarios':
+                try {
+                    const { results } = await env.DB.prepare('SELECT * FROM usuarios').all();
+                    return Response.json(results);
+                } catch (error) {
+                    return new Response('Error al consultar D1', { status: 500 });
+                }
+            default:
+                return new Response('Not Found', { status: 404 });
+        }
+    },
 } satisfies ExportedHandler<Env>;
-
