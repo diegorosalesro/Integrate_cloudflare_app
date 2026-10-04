@@ -13,7 +13,6 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.0.0",
-    "@rolldown/binding-win32-x64-msvc": "^1.2.9",
     "@types/node": "^26.6.1",
     "@vitest/coverage-istanbul": "~4.1.0",
     "typescript": "^5.5.2",
