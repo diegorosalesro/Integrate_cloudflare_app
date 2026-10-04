@@ -4,7 +4,7 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "practica_4_diego",
+  "name": "practica-7",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-16",
   "compatibility_flags": [
